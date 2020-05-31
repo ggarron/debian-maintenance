@@ -1,0 +1,548 @@
+# Debian Maintenance
+
+## Contents
+
+* [Introduction](#introduction)
+* [The Advance Packaging Tool (APT)](#APT)
+    * [Sources](#sources)
+    * [dpkg](#dpkg)
+    * [apt](#apt)
+    * [apt-get, apt-cache](#apt-get)
+    * [aptitude](#aptitude)
+* [Upgrading to a new release](#upgrade-debian)
+* [Installing packages from Backports](#backports)
+* [References](#references)
+        
+<h2 id="introduction">Introduction</h2>
+
+Maintenance is an important part of any system, being it a car, a machine, or a server, and if your server is running Debian Linux or some its derivatives like Ubuntu you have different tools to keep working properly
+
+Maintenance tasks in Linux servers is important, specially because of security risk your system is exposed at when not properly updated and maintened.
+
+<h2 id="APT">The Advance Packaging Tool</h2>
+
+A package manager is a set of software tools to install, update and upgrade the programs needed by the computer to work. The package manager should deals with dependencies and compatibilities to assure proper function of the computer programs installed on a given system.
+
+To achieve that a good package manager keeps a record of all programs installed, and the dependencies needed by any other program, all of these info is saved in a Database. The basic informacion kept in that database among others is:
+
+- Name
+- Vendor
+- Version
+- Dependencies
+
+In Debian that set of tools is APT which stands for *Advance Packaging Tool*, it is aimed at administering the Debian system, the basic tool is <code>dpkg</code>, over it you have better known set of tools, like <code>apt-get</code>, <code>apt-cache</code> and <code>apt</code>, this last one, should not be confused with APT, the *Advance Packaging Tool*, some other tools which are alternatives to the former are: <code>aptitude</code> and for a graphical internface Synaptic
+
+<h3 id="sources">Sources</h3>
+
+In order to work APT or other tools to work need a list of sources, which is another server which acts as repository of all packages that conform a given Debian distribution. You can configure that list of sources at <code>/etc/apt/sources.list</code>. When you invoke APT, it reads that file and downloads the list of packages published by each of those sources (repositories). What happens behind the courtains is that ATP will download <code>Packages.gz</code> or <code>Packages.bz2</code>, if the repository is for binary packages, if the repository is keeping source packages, then the downloaded files are: <code>Sources.gz</code> or <code>Sources.bz2</code>.
+
+APT will keep those files, and keep them up-to-date by downloading incremental differences in case of any change in the repositories.
+
+The format of the <code>sources.list</code> file is:
+
+	deb http://site.example.com/debian distribution component1 component2 component3
+	deb-src http://site.example.com/debian distribution component1 component2 component3
+
+Let's explain the syntax a little bit:
+
+<div class="tg-wrap"><table>
+<thead>
+  <tr>
+    <th>Element</th>
+    <th>Description</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td>deb / deb-src</td>
+    <td>deb is for binaries, and deb-src is for program sources</td>
+  </tr>
+  <tr>
+    <td>Repository url</td>
+    <td>The url for the repository to look at when searching packages</td>
+  </tr>
+  <tr>
+    <td>Distribution</td>
+    <td>This could be the name of a specific distribution, like: Sarge or Jessie, or the release class like: oldstable, stable, testing, unstable</td>
+  </tr>
+  <tr>
+    <td>Component</td>
+    <td>main, contrib or non-free</td>
+  </tr>
+</tbody>
+</table></div>
+
+
+<h3 id="dpkg">dpkg</h3>
+
+<code>dpkg</code> is the main command line tool for package management, <code>dpkg</code> is usually the tool to be used when you want to install .deb package, if you have already downloaded it from the web, you can install it by using <code>dpkg</code>, it keeps track of all software installed on your system, but it does not know about software avaible for installation, this means that if all requirements are met the .deb file is going to installed, but if only one dependenc is not already installed on the system then the installation will fail.
+
+You want to use <code>apt-get</code> or <code>aptitude</code> to avoid installation failure, but both, <code>apt-get</code> and <code>dpkg</code> has its uses, and you should see them as tools that work together, the latter is more a system tool, and the former more a user tool.
+
+**Install software with dpkg**
+
+If you want to install software with dpkg, you first need to download the .deb file, better from authorized and trusted sites, and then run, let's see and example with <code>htop</code>
+
+    dpkg -i htop_2.2.0-2_amd64.deb
+    
+Being the output, something like this.
+
+    Selecting previously unselected package htop.
+    (Reading database ... 37412 files and directories currently installed.)
+    Preparing to unpack htop_2.2.0-2_amd64.deb ... 
+    Unpacking htop (2.2.0-2) ...
+    Setting up htop (2.2.0-2) ...
+    Processing triggers for mime-support (3.64) ...
+    Processing triggers for man-db (2.9.1-1) ...
+    
+**Check if the program was properly installed**
+
+    dpkg -l | grep htop
+    
+The output should looks like this:
+
+    ii  htop                          2.2.0-2                        amd64        interactive processes viewer
+    
+**Remove software with dpkg**
+    
+To remove a package run this it this way.
+
+    dpkg -r htop
+    
+And the output should looks like:
+
+    (Reading database ... 37422 files and directories currently installed.)
+    Removing htop (2.2.0-2) ...
+    Processing triggers for man-db (2.9.1-1) ...
+    Processing triggers for mime-support (3.64) ...
+    
+The last command will uninstall the package but will left its configuration files, useful in case you have worked on them, and for an easy re-installation of the program, if you really want to uninstall with no traces of it.
+
+    dpkg -P htop
+    
+The output will be:
+
+    (Reading database ... 37422 files and directories currently installed.)
+    Removing htop (2.2.0-2) ...
+    Processing triggers for man-db (2.9.1-1) ...
+    Processing triggers for mime-support (3.64) ...
+    
+**dpkg log file**
+
+If something fails, you can look a its log file, located at <code>/var/log/dpkg.log</code> it has a lot of useful information, for the two examples above here are the logs.
+
+Installing htop:
+
+    2020-05-30 20:48:53 startup archives install
+    2020-05-30 20:48:53 install htop:amd64 <none> 2.2.0-2
+    2020-05-30 20:48:53 status half-installed htop:amd64 2.2.0-2
+    2020-05-30 20:48:53 status triggers-pending mime-support:all 3.64
+    2020-05-30 20:48:53 status triggers-pending man-db:amd64 2.9.1-1
+    2020-05-30 20:48:53 status unpacked htop:amd64 2.2.0-2
+    2020-05-30 20:48:53 configure htop:amd64 2.2.0-2 2.2.0-2
+    2020-05-30 20:48:53 status half-configured htop:amd64 2.2.0-2
+    2020-05-30 20:48:53 status installed htop:amd64 2.2.0-2
+    2020-05-30 20:48:53 trigproc mime-support:all 3.64 <none>
+    2020-05-30 20:48:53 status half-configured mime-support:all 3.64
+    2020-05-30 20:48:53 status installed mime-support:all 3.64
+    2020-05-30 20:48:53 trigproc man-db:amd64 2.9.1-1 <none>
+    2020-05-30 20:48:53 status half-configured man-db:amd64 2.9.1-1
+    2020-05-30 20:48:54 status installed man-db:amd64 2.9.1-1
+    
+And these are the logs of the deinstallation of htop in the example above
+
+    2020-05-30 20:52:46 startup packages remove
+    2020-05-30 20:52:46 status installed htop:amd64 2.2.0-2
+    2020-05-30 20:52:46 remove htop:amd64 2.2.0-2 <none>
+    2020-05-30 20:52:46 status half-configured htop:amd64 2.2.0-2
+    2020-05-30 20:52:46 status half-installed htop:amd64 2.2.0-2
+    2020-05-30 20:52:46 status triggers-pending man-db:amd64 2.9.1-1
+    2020-05-30 20:52:46 status triggers-pending mime-support:all 3.64
+    2020-05-30 20:52:46 status config-files htop:amd64 2.2.0-2
+    2020-05-30 20:52:46 status not-installed htop:amd64 <none>
+    2020-05-30 20:52:46 trigproc man-db:amd64 2.9.1-1 <none>
+    2020-05-30 20:52:46 status half-configured man-db:amd64 2.9.1-1
+    2020-05-30 20:52:47 status installed man-db:amd64 2.9.1-1
+    2020-05-30 20:52:47 trigproc mime-support:all 3.64 <none>
+    2020-05-30 20:52:47 status half-configured mime-support:all 3.64
+    2020-05-30 20:52:47 status installed mime-support:all 3.64
+    
+<h3 id="apt">apt</h3>
+
+Not to be confused with APT, <code>apt</code> is the command line tool to install, deinstall and upgrade software on your Debian system, it is kind of evolution of <code>apt-get</code> and <code>apt-cache</code>, the former offers easier to use options, something like the most used options used with the latter ones, and all of them in just one command. Most users does not need all the options <code>apt-get</code> and <code>apt-cache</code> hast to offer. If we read the first pargraph of the <code>man apt</code> output it says.
+
+    apt (Advanced Package Tool) is the command-line tool for handling packages. It provides a commandline interface for the package management of the system. See also apt-get(8) and apt-cache(8) for more low-level command options.
+    
+So <code>apt-get</code> and <code>apt-cache</code> offer more low level command options, while <code>apt</code> is simpler and offers the options most of the users will need, some will never need to use <code>apt-get</code> and <code>apt-cache</code>. That being said, let's see how to use it.
+
+**Install a package**
+
+To install a package run:
+
+    apt install htop
+    
+I am once again using <code>htop</code> as the example, you should change it with the package you need to install.
+
+**Uninstall a package**
+
+    apt remove htop
+    
+Just like with <code>dpkg -r htop</code> the command above will remove the program, but not its configuration files, if you want to remove them too, run:
+
+    apt purge htop
+    
+#### Keeping your system up to date
+
+For security reasons you should try to always have your system updated, package mainteiners updates not only because of new functionality, as a matter of fact, on Debian systems you usually get new functionality when a major upgrade is performed, but as soon as a security breach is discovered on any package, it will be patched and the new version will be available.
+
+**Update source database**
+
+The first step is to update the source repositories, then, run this command.
+
+    apt update
+    
+**Upgrade the system**
+
+    apt upgrade
+    
+With those commands you will have an up to date and secured system, specially if you are running Debian Stable.
+
+**Upgrade to a new release**
+
+When a new version of Debian becomes available, that is when the current *testing* branch becomes *stable*, and the *stable* goes to *old-stable* you can upgrade your system as a whole to the new release. To do that, can use use <code>apt</code> again.
+
+    apt full-upgrade
+    
+The command will upgrade all packages to the versions in the new release, it will also remove any package that may cause conflicts. We'll see the whole process later, as it is not as simple as issuing the command showed above.
+
+**List all installed packages**
+
+If you want to know which packages are installed run:
+
+    apt list --installed
+    
+Below the partial output of the command.
+
+    Listing... Done
+    adduser/testing,now 3.118 all [installed]
+    alsa-topology-conf/testing,now 1.2.2-1 all [installed,automatic]
+    alsa-ucm-conf/testing,now 1.2.2-1 all [installed,automatic]
+    apparmor/testing,now 2.13.4-1+b1 amd64 [installed,automatic]
+    apt-listchanges/testing,now 3.22 all [installed]
+    apt-utils/testing,now 2.1.5 amd64 [installed]
+    apt/testing,now 2.1.5 amd64 [installed]
+    base-files/testing,now 11 amd64 [installed
+
+**Search for a program**
+
+If you want to search for a program, use <code>apt</code> as shown below
+
+    apt search htop
+    
+The output will be like this:
+
+    Sorting... Done
+    Full Text Search... Done
+    aha/testing 0.5-1+b1 amd64
+      ANSI color to HTML converter
+
+    htop/testing,now 2.2.0-2 amd64 [installed]
+      interactive processes viewer
+
+    libauthen-oath-perl/testing 2.0.1-1 all
+      Perl module for OATH One Time Passwords
+
+    pftools/testing 3+dfsg-3 amd64
+      build and search protein and DNA generalized profiles
+
+As it can be seen, it shows some options where it is included the package we are looking for
+
+**Show the package details**
+
+If you want to know the details of any given package run:
+
+    apt show htop
+    
+The output will be:
+
+    Package: htop
+    Version: 2.2.0-2
+    Priority: optional
+    Section: utils
+    Maintainer: Daniel Lange <DLange@debian.org>
+    Installed-Size: 233 kB
+    Depends: libc6 (>= 2.15), libncursesw6 (>= 6), libtinfo6 (>= 6)
+    Suggests: lsof, strace
+    Homepage: https://hisham.hm/htop/
+    Tag: admin::monitoring, interface::text-mode, role::program, scope::utility,
+     uitoolkit::ncurses, use::monitor, works-with::software:running
+    Download-Size: 92.8 kB
+    APT-Manual-Installed: yes
+    APT-Sources: http://deb.debian.org/debian testing/main amd64 Packages
+    Description: interactive processes viewer
+     Htop is an ncursed-based process viewer similar to top, but it
+     allows one to scroll the list vertically and horizontally to see
+     all processes and their full command lines.
+     .
+     Tasks related to processes (killing, renicing) can be done without
+     entering their PIDs.
+
+**Edit sources**
+
+Of course you can always just edit sources by issuing:
+
+    vim /etc/apt/sources.list
+    
+But with <code>apt</code> you can also run:
+
+    apt edit-sources
+    
+The first time you run the program it will ask for your favorite editor.
+
+    Select an editor.  To change later, run 'select-editor'.
+      1. /bin/nano        <---- easiest
+      2. /usr/bin/vim.basic
+      3. /usr/bin/vim.tiny
+
+    Choose 1-3 [1]:
+
+Pick yours (mine is vim) and you are good to go.
+
+<h3 id="apt-get">apt-get, apt-cache</h3>
+
+As said before, <code>apt-get</code> and <code>apt-cache</code> can be used for the same tasks <code>apt</code> is used. You just have to mix them in order to achieve all the above functions. Let's see a few examples.
+
+
+<div class="tg-wrap"><table>
+<thead>
+  <tr>
+    <th>Element</th>
+    <th>Description</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td>deb / deb-src</td>
+    <td>deb is for binaries, and deb-src is for program sources</td>
+  </tr>
+  <tr>
+    <td>Repository url</td>
+    <td>The url for the repository to look at when searching packages</td>
+  </tr>
+  <tr>
+    <td>Distribution</td>
+    <td>This could be the name of a specific distribution, like: Sarge or Jessie, or the release class like: oldstable, stable, testing, unstable</td>
+  </tr>
+  <tr>
+    <td>Component</td>
+    <td>main, contrib or non-free</td>
+  </tr>
+</tbody>
+</table></div>
+
+As it can be seen, if one stick to <code>apt</code> the commands are easier to remember as it is only one command with options, while with <code>apt-get</code>/<code>apt-cache</code> you have to mix commands and options, that is the reason for <code>apt</code> to exist, to make it easier for common users. 
+
+It is better to stick with <code>apt</code>, <code>apt-get</code>/<code>apt-cache</code> will continue to exist and in active developing as they are used for more low level tasks. Let's see an example.
+
+**Search all packages starting with a term**
+
+If you want to search for all packages starting with a specific term you will need to use <code>apt-cache</code>
+
+    apt-cache pkgnames alsa
+    
+The output will be:
+
+    alsa-topology-conf
+    alsaplayer-alsa
+    alsamixergui
+    alsaequal
+    alsa-ucm-conf
+    alsaplayer-jack
+    alsaplayer-common
+    alsaplayer-gtk
+    alsa-utils
+    alsaplayer-text
+    alsa-firmware-loaders
+    alsaplayer-xosd
+    alsa-tools
+    alsaplayer-nas
+    alsaplayer-oss
+    alsaplayer-daemon
+    alsa-tools-gui
+    alsa-lib
+    alsa-plugins
+    alsa-oss
+    
+<h3 id="aptitude">aptitude</h3>
+
+<code>aptitude</code> is some kind of a "smarter" <code>apt-get</code>, its main advantage is the hability to show different options to solve conflicts while installing software
+
+Here are some of its features:
+
+* A mutt-like syntax for matching packages in a flexible manner
+* Mark packages as "automatically installed" or "manually installed" so that packages can be auto-removed when no longer required (feature available in Apt, too, since quite a few Debian release)
+* Preview of actions about to be taken with different colors marking different actions
+persistence of user actions (similar to dselect)
+* The ability to interactively retrieve and display the Debian changelog of all available official packages
+* apt-like (i.e. apt-get and apt-cache) command line mode ("aptitude install foo")
+* **Score-based dependency resolver which is more suitable for interactive dependency resolution with additional hints from the user like "I don't want that part of the solution but keep that other part of the solution for your next try". Apt's dependency resolver on the other hand is optimized for good "one shot" solutions.**
+
+**Interactive mode**
+
+Aptitude has an interactive mode as you can see below
+
+![Aptitude Interactive](/images/2020/05/aptitude-interactive.png)
+
+The commands for the interactive mode are:
+
+* F10 or Ctrl-T to access the menu.
+* '?' for help
+* The 'up', 'down', 'left', 'right' keys to navigate.
+* The 'Enter' key to select or open and close a single level
+* The bracket keys ('[' and ']') to open and close levels recursively
+* The '+' or '-' key to install/update or remove a package
+* The 'g' key to preview/confirm actions
+* 'q' to quit – this also closes the currently open window (‘g’ goes forward, ‘q’ goes back)
+* Forward and backward slash ('/' and '\') for searching forward or backward.
+  
+**Command line use**
+
+When it is used in the command line, just like <code>apt</code>, the options are very similar.
+
+Below a table that shows equivalent commands between <code>apt</code> and <code>aptitude</code>
+
+<div class="tg-wrap"><table>
+<thead>
+  <tr>
+    <th>Action</th>
+    <th>apt command</th>
+    <th>aptitude command</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td><br>Install foo</td>
+    <td>apt install foo</td>
+    <td>aptitude install foo</td>
+  </tr>
+  <tr>
+    <td><br>Search foo</td>
+    <td>apt search foo</td>
+    <td>aptitude search foo</td>
+  </tr>
+  <tr>
+    <td><br>List installed packages</td>
+    <td>apt list</td>
+    <td>aptitude search ~i</td>
+  </tr>
+  <tr>
+    <td><br>Remove foo</td>
+    <td>apt remove foo</td>
+    <td>aptitude remove foo</td>
+  </tr>
+  <tr>
+    <td><br>List reverse dependencies</td>
+    <td>apt rdepends foo</td>
+    <td>aptitude search ~Dfoo</td>
+  </tr>
+  <tr>
+    <td><br>Print information on priorities for foo</td>
+    <td>apt policy foo (since Buster), apt-cache policy foo</td>
+    <td>aptitude versions foo</td>
+  </tr>
+  <tr>
+    <td><br>Show package information for foo</td>
+    <td>apt show foo</td>
+    <td>aptitude show foo</td>
+  </tr>
+  <tr>
+    <td><br>Download foo's sources</td>
+    <td>apt source foo</td>
+    <td>aptitude source foo</td>
+  </tr>
+  <tr>
+    <td><br>Download foo's sources and build a binary .deb package</td>
+    <td>apt source --compile foo</td>
+    <td>(none)</td>
+  </tr>
+</tbody>
+</table></div>
+  
+<h2 id="upgrade-debian">Upgrading Debian to a new release 9 to 10 (Stretch to Buster)</h2>
+
+At the time of this writing the lastest stable Debian release is Debian 10 Buster, so if you want to upgrade from Stretch to Buster you need to run this commands (I will keep updating this section each time a new Debian release comes out)
+
+**Upgrade your current version**
+
+    apt update && apt upgrade
+    
+It is highly advisable to reboot, in case a new kernel have been released
+
+    reboot
+    
+**Edit sources**
+
+    apt edit-sources
+    
+Change all occurrences of *stretch* with *buster*
+
+**Update repositories**
+
+You need now to update your repositories with the new version.
+
+    apt update
+    
+**Upgrade your system**
+
+    apt upgrade
+    
+Follow instructions, and take to keep your edited configuration files, as you may have made changed to them
+    
+**Upgrade to the new version**
+
+    apt full-upgrade
+    
+**Reboot**
+
+It is better to reboot one more time.
+
+    reboot
+    
+<h2 id="backports">Install more up-to-date software (from backports)</h2>
+
+Debian stable is great, specially because it is **stable**, but as years goes on their software gets outdated, and there are situations where you need a new functionality from a new version that is not available on *Debian Stable*, in such case you have two options.
+
+1. Move to testing
+2. Install software from backports
+
+We'll see the second one now. According to backports site:
+
+> Backports are packages taken from the next Debian release (called "testing"), adjusted and recompiled for usage on Debian stable. Because the package is also present in the next Debian release, you can easily upgrade your stable+backports system once the next Debian release comes out. (In a few cases, usually for security updates, backports are also created from the Debian unstable distribution.)
+
+Let's see now how to install Debian Backports on your Debian Stable.
+
+**Edit sources to add Backports**
+
+The very first step is to make backports software available for your system
+
+    apt edit-sources
+
+Then add this line:
+
+    deb http://deb.debian.org/debian buster-backports main
+    
+**Update the repositories**
+
+    apt update
+    
+**Install software from backports**
+
+    apt-get -t buster-backports install htop
+    
+<h3 id="references">References</h3>
+
+- [Debian Wiki](https://wiki.debian.org/FrontPage)
+- [Wikipedia](https://en.wikipedia.org/wiki/Main_Page)
+- [The Debian Administrator Handbook](https://debian-handbook.info/)
+
+Last edited on: May 30, 2020
